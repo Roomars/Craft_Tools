@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visualizzatore build Minecraft</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Pixelify+Sans:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#edf1ee; --panel:#f8faf8; --panel-2:#e2e9e4; --ink:#15201a; --ink-2:#4a5a51; --line:#c5cfc8;
+  --accent:#b9770e; --accent-ink:#ffffff; --canvas:#dde7e0;
+  --grid:rgba(21,32,26,.15); --grid-strong:rgba(21,32,26,.36); --focus:#1c6f8f;
+  --f-display:"Pixelify Sans","Courier New",monospace;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0f1512; --panel:#171e1a; --panel-2:#212b25; --ink:#e6ede8; --ink-2:#9db0a4; --line:#2d3932;
+    --accent:#e6a23c; --accent-ink:#1b1305; --canvas:#0c120f;
+    --grid:rgba(230,237,232,.14); --grid-strong:rgba(230,237,232,.34); --focus:#6cc3e0;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0f1512; --panel:#171e1a; --panel-2:#212b25; --ink:#e6ede8; --ink-2:#9db0a4; --line:#2d3932;
+  --accent:#e6a23c; --accent-ink:#1b1305; --canvas:#0c120f;
+  --grid:rgba(230,237,232,.14); --grid-strong:rgba(230,237,232,.34); --focus:#6cc3e0;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+.app{max-width:1180px;margin:0 auto;padding-block:20px 28px;padding-inline:16px}
+h1{font-family:var(--f-display);font-weight:600;font-size:30px;line-height:1.1;margin:0;letter-spacing:.01em;text-wrap:balance}
+h2{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin:0 0 8px}
+p{margin:0}
+.top{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+.sub{color:var(--ink-2);margin-top:6px;max-width:60ch}
+.stats{display:flex;flex-wrap:wrap;gap:6px 18px;font-family:var(--f-mono);font-size:12px;color:var(--ink-2)}
+.stats b{color:var(--ink);font-weight:500}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stage,.side section{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.stage{padding:12px}
+.side{display:flex;flex-direction:column;gap:12px}
+.side section{padding:12px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:-2px -2px 10px;padding-bottom:8px;flex-wrap:wrap}
+button{font:inherit;color:inherit}
+.tab{border:1px solid transparent;background:transparent;padding:6px 12px;border-radius:6px;cursor:pointer;color:var(--ink-2);font-weight:500}
+.tab:hover{background:var(--panel-2);color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+button:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.controls{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;min-height:76px}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.lbl{font-size:12px;color:var(--ink-2);min-width:64px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{background:transparent;border:0;padding:5px 10px;cursor:pointer;color:var(--ink-2);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-checked="true"]{background:var(--panel-2);color:var(--ink);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+.btn{background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}
+.btn:hover{border-color:var(--ink-2)}
+.step{width:30px;padding:5px 0;text-align:center;font-family:var(--f-mono)}
+.range{display:flex;align-items:center;gap:8px;flex:1 1 260px;min-width:0}
+.range input[type=range]{flex:1;min-width:120px;accent-color:var(--accent)}
+.val{font-family:var(--f-mono);font-size:12px;min-width:150px}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+.chk input{accent-color:var(--accent);width:15px;height:15px}
+.canvas-wrap{position:relative;height:clamp(320px,62vh,620px);background:var(--canvas);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+canvas{position:absolute;inset:0;display:block;cursor:crosshair}
+.readout{font-family:var(--f-mono);font-size:12px;color:var(--ink-2);min-height:2.9em;margin-top:8px}
+.readout b{color:var(--ink);font-weight:500}
+.note{font-size:12px;color:var(--ink-2);margin-top:6px;max-width:80ch}
+.list{display:flex;flex-direction:column;gap:4px}
+.item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:1px solid transparent;border-radius:6px;padding:5px 8px;cursor:pointer}
+.item:hover{background:var(--panel-2)}
+.item[aria-pressed="true"]{border-color:var(--accent);background:var(--panel-2)}
+.item .nm{flex:1;min-width:0}
+.item .nm span{display:block;font-size:11px;color:var(--ink-2);font-family:var(--f-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .n{font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.item.zero{opacity:.45}
+.sw{width:18px;height:18px;border-radius:3px;border:1px solid rgba(0,0,0,.35);flex:none}
+.tag{font-size:10px;letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;color:var(--ink-2);vertical-align:1px}
+.sidehead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.sidehead h2{margin:0}
+.opt{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+@media (prefers-reduced-motion:no-preference){.item,.tab,.btn{transition:background .12s,border-color .12s}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div>
+      <h1 id="title">Caricamento…</h1>
+      <p class="sub" id="subtitle"></p>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="grid">
+    <section class="stage" aria-label="Visualizzatore">
+      <div class="tabs" role="tablist" aria-label="Vista">
+        <button class="tab" role="tab" id="tab-3d" data-view="3d" aria-selected="true">3D</button>
+        <button class="tab" role="tab" id="tab-y" data-view="y" aria-selected="false">Sezione orizzontale</button>
+        <button class="tab" role="tab" id="tab-v" data-view="v" aria-selected="false">Sezione verticale</button>
+      </div>
+      <div class="controls" id="controls"></div>
+      <div class="canvas-wrap" id="wrap">
+        <canvas id="cv" tabindex="0" role="img" aria-label="Vista della casetta: 3D, sezione orizzontale o verticale, a seconda della scheda scelta"></canvas>
+      </div>
+      <div class="readout" id="readout" aria-live="polite"></div>
+      <p class="note">Nelle sezioni 1 cella = 1 blocco (colonne A, B, C&hellip;, righe numerate, nord in alto). Sugli scalini il triangolo indica il lato alto. In 3D scalini, pannelli, porte e arredi sono forme semplificate.</p>
+    </section>
+
+    <aside class="side">
+      <section aria-label="Edifici">
+        <h2>Edifici</h2>
+        <div class="list" id="bld"></div>
+      </section>
+      <section aria-label="Pezzi">
+        <div class="sidehead"><h2>Pezzi</h2><button class="btn" id="reset">Mostra tutto</button></div>
+        <div class="list" id="legend"></div>
+        <div class="opt">
+          <label class="chk"><input type="checkbox" id="dim" checked> Attenua ciò che è filtrato, senza nasconderlo</label>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+function boot(D){
+document.title = D.title || 'Visualizzatore build Minecraft';
+document.getElementById('title').textContent = D.title || 'Build Minecraft';
+document.getElementById('subtitle').textContent = D.subtitle || '';
+const W = D.dims[0], H = D.dims[1], DP = D.dims[2], N = W*H*DP;
+const codes = D.order;
+const cidx = {}; codes.forEach((c,i)=>{ cidx[c] = i+1; });
+const P = [null].concat(codes.map((c,i)=>{ const p = D.palette[c]; p.code = c; p.i = i+1; p.rgb = hex2rgb(p.color); return p; }));
+const SHAPE_LABEL = {stair:'scalino', pane:'pannello', door:'porta', slab:'lastra', other:'oggetto', wall:'muretto', fence:'recinzione'};
+
+function hex2rgb(h){ const n = parseInt(h.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+function rgba(rgb,a){ return 'rgba('+rgb[0]+','+rgb[1]+','+rgb[2]+','+a+')'; }
+function contrast(rgb){ return (rgb[0]*0.299+rgb[1]*0.587+rgb[2]*0.114) > 150 ? '#141a17' : '#f6faf7'; }
+function colName(n){ const A='ABCDEFGHIJKLMNOPQRSTUVWXYZ'; return n<26 ? A[n] : A[Math.floor(n/26)-1]+A[n%26]; }
+function fmt(n){ return n.toLocaleString('it-IT'); }
+const ix = (x,y,z)=>(y*DP+z)*W+x;
+
+/* ---------- modello ---------- */
+const grid = new Uint8Array(N);
+const facingMap = new Map();
+D.layers.forEach((rows,y)=>rows.forEach((row,z)=>{
+  for(let x=0;x<W;x++){ const c = row.substr(2*x,2); if(c!=='..') grid[ix(x,y,z)] = cidx[c]; }
+}));
+Object.keys(D.facing).forEach(k=>{ const a = k.split(',').map(Number); facingMap.set(ix(a[0],a[1],a[2]), D.facing[k]); });
+const B = D.buildings;
+const owner = new Int8Array(N).fill(-1);
+let TOTAL = 0;
+for(let y=0;y<H;y++) for(let z=0;z<DP;z++) for(let x=0;x<W;x++){
+  const i = ix(x,y,z); if(!grid[i]) continue; TOTAL++;
+  for(let b=0;b<B.length;b++){ const q = B[b].bbox; if(x>=q[0]&&x<=q[3]&&y>=q[1]&&y<=q[4]&&z>=q[2]&&z<=q[5]){ owner[i]=b; break; } }
+}
+function solidAt(x,y,z){ if(x<0||y<0||z<0||x>=W||y>=H||z>=DP) return false; const c = grid[ix(x,y,z)]; return c>0 && P[c].shape==='full'; }
+function spanAxis(x,y,z){
+  const ex = solidAt(x-1,y,z)||solidAt(x+1,y,z), ez = solidAt(x,y,z-1)||solidAt(x,y,z+1);
+  return (ez && !ex) ? 'z' : 'x';
+}
+
+/* ---------- stato ---------- */
+const S = {view:'3d', y:D.start.y, axis:D.start.axis, pos:D.start.pos, cut:'none', ghost:false, codes:true, dim:true,
+           bld:null, sel:new Set(), yaw:-0.62, pitch:0.62, zoom:1, hover:null};
+const vs = new Uint8Array(N);
+function filt(){
+  for(let i=0;i<N;i++){
+    const c = grid[i]; if(!c){ vs[i]=0; continue; }
+    const ok = (S.bld===null || owner[i]===S.bld) && (S.sel.size===0 || S.sel.has(c));
+    vs[i] = ok ? 2 : (S.dim ? 1 : 0);
+  }
+}
+function in3d(x,y,z){
+  if(S.cut==='y') return y<=S.y;
+  if(S.cut==='v') return S.axis==='z' ? z<=S.pos : x<=S.pos;
+  return true;
+}
+function inScope(x,y,z){
+  if(S.view==='3d') return in3d(x,y,z);
+  if(S.view==='y') return y===S.y;
+  return S.axis==='z' ? z===S.pos : x===S.pos;
+}
+let COUNTS = null;
+function stats(){
+  const leg = new Int32Array(codes.length+1), bl = new Int32Array(B.length+1);
+  let seen = 0;
+  for(let y=0;y<H;y++) for(let z=0;z<DP;z++) for(let x=0;x<W;x++){
+    const i = ix(x,y,z), c = grid[i]; if(!c || !inScope(x,y,z)) continue;
+    const o = owner[i]<0 ? B.length : owner[i];
+    const okB = S.bld===null || owner[i]===S.bld, okC = S.sel.size===0 || S.sel.has(c);
+    if(okB) leg[c]++;
+    if(okC) bl[o]++;
+    if(okB && okC) seen++;
+  }
+  COUNTS = {leg:leg, bl:bl, seen:seen};
+}
+
+/* ---------- tema e canvas ---------- */
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), wrap = document.getElementById('wrap');
+let cw = 300, ch = 300, dpr = 1, TH = null, raf = 0;
+function theme(){
+  if(TH) return TH;
+  const cs = getComputedStyle(document.documentElement), g = n=>cs.getPropertyValue(n).trim();
+  TH = {canvas:g('--canvas'), ink:g('--ink'), ink2:g('--ink-2'), grid:g('--grid'), gridS:g('--grid-strong'), accent:g('--accent')};
+  return TH;
+}
+function invalidateTheme(){ TH = null; request(); }
+try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', invalidateTheme); }catch(e){}
+new MutationObserver(invalidateTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme','class','style']});
+function resize(){
+  const r = wrap.getBoundingClientRect(); dpr = window.devicePixelRatio || 1;
+  cw = Math.max(200, Math.floor(r.width)); ch = Math.max(200, Math.floor(r.height));
+  cv.width = Math.floor(cw*dpr); cv.height = Math.floor(ch*dpr); cv.style.width = cw+'px'; cv.style.height = ch+'px';
+  request();
+}
+new ResizeObserver(resize).observe(wrap);
+function request(){ if(!raf) raf = requestAnimationFrame(render); }
+function render(){
+  raf = 0; ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(S.view==='3d') render3d(); else if(S.view==='y') renderH(); else renderV();
+}
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(request);
+
+/* ---------- 3D ---------- */
+const DIRS = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+const SHADE = [0.66,0.58,1,0.45,0.86,0.72];
+let faces = [];
+function boxesFor(c,i,x,y,z){
+  const p = P[c];
+  switch(p.shape){
+    case 'stair': {
+      const f = facingMap.get(i) || 'S';
+      const hi = f==='S' ? [0,.5,.5,1,1,1] : f==='N' ? [0,.5,0,1,1,.5] : f==='E' ? [.5,.5,0,1,1,1] : [0,.5,0,.5,1,1];
+      return [[0,0,0,1,.5,1], hi];
+    }
+    case 'slab': return [[0,0,0,1,.5,1]];
+    case 'pane': case 'door': {
+      const t = p.shape==='door' ? 0.1875 : 0.125, a = spanAxis(x,y,z), m = (1-t)/2;
+      return [a==='x' ? [0,0,m,1,1,m+t] : [m,0,0,m+t,1,1]];
+    }
+    case 'wall': case 'fence': return [[.25,0,.25,.75,1,.75]];
+    case 'other': { const s = p.size || [.75,.75,.75]; return [[(1-s[0])/2,0,(1-s[2])/2,(1+s[0])/2,s[1],(1+s[2])/2]]; }
+    default: return [[0,0,0,1,1,1]];
+  }
+}
+function faceVerts(d,b,x,y,z){
+  const x0=x+b[0], y0=y+b[1], z0=z+b[2], x1=x+b[3], y1=y+b[4], z1=z+b[5];
+  switch(d){
+    case 0: return [x1,y0,z0, x1,y0,z1, x1,y1,z1, x1,y1,z0];
+    case 1: return [x0,y0,z1, x0,y0,z0, x0,y1,z0, x0,y1,z1];
+    case 2: return [x0,y1,z0, x1,y1,z0, x1,y1,z1, x0,y1,z1];
+    case 3: return [x0,y0,z1, x1,y0,z1, x1,y0,z0, x0,y0,z0];
+    case 4: return [x1,y0,z1, x0,y0,z1, x0,y1,z1, x1,y1,z1];
+    default: return [x0,y0,z0, x1,y0,z0, x1,y1,z0, x0,y1,z0];
+  }
+}
+function occ(x,y,z,level){
+  if(x<0||y<0||z<0||x>=W||y>=H||z>=DP) return false;
+  if(!in3d(x,y,z)) return false;
+  const j = ix(x,y,z), c = grid[j];
+  return c>0 && P[c].shape==='full' && vs[j]>=level;
+}
+function buildFaces(){
+  faces = [];
+  for(let y=0;y<H;y++) for(let z=0;z<DP;z++) for(let x=0;x<W;x++){
+    const i = ix(x,y,z), c = grid[i], st = vs[i];
+    if(!c || st===0 || !in3d(x,y,z)) continue;
+    const p = P[c], level = st===2 ? 2 : 1, solid = p.shape==='pane' || p.shape==='door';
+    const boxes = boxesFor(c,i,x,y,z);
+    for(const b of boxes){
+      for(let d=0; d<6; d++){
+        const n = DIRS[d];
+        const onB = (d===0&&b[3]>=1)||(d===1&&b[0]<=0)||(d===2&&b[4]>=1)||(d===3&&b[1]<=0)||(d===4&&b[5]>=1)||(d===5&&b[2]<=0);
+        if(onB && occ(x+n[0],y+n[1],z+n[2],level)) continue;
+        const sh = SHADE[d];
+        faces.push({v:faceVerts(d,b,x,y,z), n:n, i:i, x:x, y:y, z:z, dbl:solid,
+          fill:'rgb('+Math.round(p.rgb[0]*sh)+','+Math.round(p.rgb[1]*sh)+','+Math.round(p.rgb[2]*sh)+')',
+          alpha: st===2 ? (p.shape==='pane' ? 0.55 : 1) : 0.11, edge: st===2});
+      }
+    }
+  }
+}
+let drawn = [];
+function project(w,h){
+  const cY=Math.cos(S.yaw), sY=Math.sin(S.yaw), cP=Math.cos(S.pitch), sP=Math.sin(S.pitch);
+  const R = 0.5*Math.sqrt(W*W+H*H+DP*DP), sc = Math.min(w,h)/(2*R)*1.02*S.zoom;
+  const cx = W/2, cy = H*0.42, cz = DP/2, out = [];
+  for(const f of faces){
+    const n = f.n, nrz = -n[0]*sY + n[2]*cY, nz2 = n[1]*sP + nrz*cP;
+    if(!f.dbl && nz2<=0.001) continue;
+    const v = f.v, pts = new Array(8); let d = 0;
+    for(let k=0;k<4;k++){
+      const x = v[3*k]-cx, y = v[3*k+1]-cy, z = v[3*k+2]-cz;
+      const rx = x*cY + z*sY, rz = -x*sY + z*cY, ry = y*cP - rz*sP, rz2 = y*sP + rz*cP;
+      pts[2*k] = w/2 + rx*sc; pts[2*k+1] = h/2 - ry*sc; d += rz2;
+    }
+    out.push({f:f, pts:pts, d:d/4});
+  }
+  out.sort((a,b)=>a.d-b.d);
+  return out;
+}
+function render3d(){
+  const th = theme();
+  ctx.fillStyle = th.canvas; ctx.fillRect(0,0,cw,ch);
+  drawn = project(cw,ch);
+  for(const o of drawn){
+    const f = o.f, q = o.pts;
+    ctx.globalAlpha = f.alpha; ctx.fillStyle = f.fill;
+    ctx.beginPath(); ctx.moveTo(q[0],q[1]); ctx.lineTo(q[2],q[3]); ctx.lineTo(q[4],q[5]); ctx.lineTo(q[6],q[7]); ctx.closePath(); ctx.fill();
+    if(f.edge){ ctx.globalAlpha = 0.28; ctx.strokeStyle = '#000'; ctx.lineWidth = 0.6; ctx.stroke(); }
+  }
+  ctx.globalAlpha = 1;
+  if(S.hover){
+    const q = S.hover.pts;
+    ctx.strokeStyle = th.accent; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(q[0],q[1]); ctx.lineTo(q[2],q[3]); ctx.lineTo(q[4],q[5]); ctx.lineTo(q[6],q[7]); ctx.closePath(); ctx.stroke();
+  }
+  ctx.fillStyle = th.ink2; ctx.font = '11px '+cssMono(); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText('trascina: ruota  ·  rotella / pizzica: zoom', 10, ch-10);
+}
+function cssMono(){ return '"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace'; }
+function inPoly(px,py,q){
+  let inside = false;
+  for(let a=0,b=3; a<4; b=a++){
+    const xa=q[2*a], ya=q[2*a+1], xb=q[2*b], yb=q[2*b+1];
+    if(((ya>py)!==(yb>py)) && (px < (xb-xa)*(py-ya)/(yb-ya)+xa)) inside = !inside;
+  }
+  return inside;
+}
+function pick3d(px,py){
+  for(let k=drawn.length-1;k>=0;k--){
+    const o = drawn[k]; if(o.f.alpha<0.2 && o.f.alpha!==0.11) continue;
+    if(o.f.alpha===0.11) continue;
+    if(inPoly(px,py,o.pts)) return o;
+  }
+  return null;
+}
+
+/* ---------- 2D ---------- */
+function layout(cols,rows){
+  const lw = 34, lh = 24, pad = 10;
+  const cell = Math.max(6, Math.floor(Math.min((cw-lw-pad*2)/cols, (ch-lh-pad*2)/rows)));
+  const gw = cell*cols, gh = cell*rows;
+  return {cell:cell, cols:cols, rows:rows, gw:gw, gh:gh, ox:Math.round((cw-gw-lw)/2+lw), oy:Math.round((ch-gh-lh)/2+lh+4)};
+}
+let L2 = null;
+function drawFrame(L,colLabel,rowLabel){
+  const th = theme();
+  ctx.lineWidth = 1;
+  for(let c=0;c<=L.cols;c++){
+    ctx.strokeStyle = (c%5===0 || c===L.cols) ? th.gridS : th.grid;
+    ctx.beginPath(); ctx.moveTo(L.ox+c*L.cell+.5, L.oy); ctx.lineTo(L.ox+c*L.cell+.5, L.oy+L.gh); ctx.stroke();
+  }
+  for(let r=0;r<=L.rows;r++){
+    ctx.strokeStyle = (r%5===0 || r===L.rows) ? th.gridS : th.grid;
+    ctx.beginPath(); ctx.moveTo(L.ox, L.oy+r*L.cell+.5); ctx.lineTo(L.ox+L.gw, L.oy+r*L.cell+.5); ctx.stroke();
+  }
+  ctx.fillStyle = th.ink2; ctx.font = Math.max(9,Math.min(12,L.cell*0.42))+'px '+cssMono();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  for(let c=0;c<L.cols;c++) ctx.fillText(colLabel(c), L.ox+c*L.cell+L.cell/2, L.oy-5);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for(let r=0;r<L.rows;r++) ctx.fillText(rowLabel(r), L.ox-6, L.oy+r*L.cell+L.cell/2+1);
+}
+function markerH(c,i,x,y,z,px,py,cs){
+  const p = P[c], fg = contrast(p.rgb);
+  ctx.save(); ctx.strokeStyle = fg; ctx.fillStyle = fg; ctx.lineWidth = Math.max(1,cs/14);
+  const cx = px+cs/2, cy = py+cs/2;
+  if(p.shape==='stair'){
+    const f = facingMap.get(i)||'S', d = f==='N'?[0,-1]:f==='S'?[0,1]:f==='E'?[1,0]:[-1,0], pp = [-d[1],d[0]];
+    const tip = [cx+d[0]*cs*.42, cy+d[1]*cs*.42], bc = [cx+d[0]*cs*.16, cy+d[1]*cs*.16], hw = cs*.2;
+    ctx.beginPath(); ctx.moveTo(tip[0],tip[1]); ctx.lineTo(bc[0]+pp[0]*hw, bc[1]+pp[1]*hw); ctx.lineTo(bc[0]-pp[0]*hw, bc[1]-pp[1]*hw); ctx.closePath(); ctx.fill();
+  } else if(p.shape==='door'){
+    ctx.beginPath(); ctx.arc(cx,cy,cs*.2,0,Math.PI*2); ctx.stroke();
+  } else if(p.shape==='pane'){
+    const a = spanAxis(x,y,z); ctx.beginPath();
+    if(a==='x'){ ctx.moveTo(px+cs*.08,cy); ctx.lineTo(px+cs*.92,cy); } else { ctx.moveTo(cx,py+cs*.08); ctx.lineTo(cx,py+cs*.92); }
+    ctx.stroke();
+  } else if(p.shape==='other'){
+    const s = p.size||[.7,.7,.7], w = cs*s[0]*.86, h = cs*s[2]*.86; ctx.strokeRect(cx-w/2,cy-h/2,w,h);
+  } else if(p.shape==='wall'||p.shape==='fence'){
+    ctx.strokeRect(px+cs*.28,py+cs*.28,cs*.44,cs*.44);
+  }
+  ctx.restore();
+}
+function codeText(p,px,py,cs){
+  if(!S.codes || cs<24) return;
+  ctx.fillStyle = contrast(p.rgb); ctx.font = '500 '+Math.max(9,Math.floor(cs*.34))+'px '+cssMono();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.code, px+cs/2, py+cs/2+1);
+}
+function renderH(){
+  const th = theme(), y = S.y;
+  ctx.fillStyle = th.canvas; ctx.fillRect(0,0,cw,ch);
+  const L = layout(W,DP); L2 = {kind:'h', L:L};
+  const cs = L.cell;
+  for(let z=0;z<DP;z++) for(let x=0;x<W;x++){
+    const i = ix(x,y,z), c = grid[i], st = vs[i], px = L.ox+x*cs, py = L.oy+z*cs;
+    if(c && st>0){
+      ctx.fillStyle = rgba(P[c].rgb, st===2 ? 1 : 0.13); ctx.fillRect(px,py,cs,cs);
+    } else if(S.ghost && y>0){
+      const j = ix(x,y-1,z);
+      if(grid[j] && vs[j]===2){ ctx.fillStyle = rgba(P[grid[j]].rgb,0.22); ctx.fillRect(px,py,cs,cs); }
+    }
+  }
+  drawFrame(L, colName, r=>String(r+1));
+  for(let z=0;z<DP;z++) for(let x=0;x<W;x++){
+    const i = ix(x,y,z), c = grid[i]; if(!c || vs[i]!==2) continue;
+    const px = L.ox+x*cs, py = L.oy+z*cs;
+    markerH(c,i,x,y,z,px,py,cs); codeText(P[c],px,py,cs);
+  }
+  compass(L);
+}
+function compass(L){
+  const th = theme(); ctx.fillStyle = th.ink2; ctx.font = '11px '+cssMono(); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('N ↑', 10, 8);
+}
+function renderV(){
+  const th = theme();
+  ctx.fillStyle = th.canvas; ctx.fillRect(0,0,cw,ch);
+  const zc = S.axis==='z', cols = zc ? W : DP;
+  const L = layout(cols,H); L2 = {kind:'v', L:L};
+  const cs = L.cell, inPlaneE = zc ? 'E' : 'S', inPlaneW = zc ? 'W' : 'N';
+  const vox = (c,r)=>{ const y = H-1-r; return zc ? ix(c,y,S.pos) : ix(S.pos,y,c); };
+  for(let r=0;r<H;r++) for(let c=0;c<cols;c++){
+    const i = vox(c,r), cc = grid[i], st = vs[i]; if(!cc || st===0) continue;
+    const p = P[cc], px = L.ox+c*cs, py = L.oy+r*cs, y = H-1-r, x = zc ? c : S.pos, z = zc ? S.pos : c;
+    ctx.globalAlpha = st===2 ? 1 : 0.13; ctx.fillStyle = rgba(p.rgb,1);
+    if(p.shape==='stair'){
+      const f = facingMap.get(i)||'S';
+      ctx.fillRect(px,py+cs/2,cs,cs/2);
+      if(f===inPlaneE) ctx.fillRect(px+cs/2,py,cs/2,cs/2);
+      else if(f===inPlaneW) ctx.fillRect(px,py,cs/2,cs/2);
+      else ctx.fillRect(px,py,cs,cs/2);
+    } else if(p.shape==='pane' || p.shape==='door'){
+      const a = spanAxis(x,y,z), face = (zc && a==='x') || (!zc && a==='z');
+      if(face){ ctx.globalAlpha *= (p.shape==='pane' ? 0.6 : 1); ctx.fillRect(px,py,cs,cs); }
+      else { const t = cs*(p.shape==='door' ? .19 : .125); ctx.fillRect(px+(cs-t)/2,py,t,cs); }
+    } else if(p.shape==='other'){
+      const s = p.size||[.7,.7,.7], w = cs*(zc ? s[0] : s[2]), h = cs*s[1];
+      ctx.fillRect(px+(cs-w)/2, py+cs-h, w, h);
+    } else if(p.shape==='wall'||p.shape==='fence'){
+      ctx.fillRect(px+cs*.25,py,cs*.5,cs);
+    } else if(p.shape==='slab'){
+      ctx.fillRect(px,py+cs/2,cs,cs/2);
+    } else ctx.fillRect(px,py,cs,cs);
+    ctx.globalAlpha = 1;
+  }
+  drawFrame(L, zc ? colName : (c=>String(c+1)), r=>'Y'+(H-1-r));
+  for(let r=0;r<H;r++) for(let c=0;c<cols;c++){
+    const i = vox(c,r), cc = grid[i]; if(!cc || vs[i]!==2) continue;
+    const p = P[cc], px = L.ox+c*cs, py = L.oy+r*cs;
+    const yy = H-1-r, xx = zc ? c : S.pos, zz = zc ? S.pos : c;
+    const edgeOn = (p.shape==='pane' || p.shape==='door') && !((zc && spanAxis(xx,yy,zz)==='x') || (!zc && spanAxis(xx,yy,zz)==='z'));
+    if(edgeOn) continue;
+    if(p.shape==='full' || p.shape==='stair') codeText(p,px,py,cs);
+    else if(S.codes && cs>=24){ ctx.fillStyle = th.ink; ctx.font = '500 '+Math.max(9,Math.floor(cs*.3))+'px '+cssMono(); ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(p.code,px+cs/2,py+cs/2+1); }
+  }
+  ctx.fillStyle = th.ink2; ctx.font = '11px '+cssMono(); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText(zc ? 'vista da sud → ovest a sinistra' : 'vista da ovest → nord a sinistra', 10, 8);
+}
+function cell2d(px,py){
+  if(!L2) return null; const L = L2.L;
+  const c = Math.floor((px-L.ox)/L.cell), r = Math.floor((py-L.oy)/L.cell);
+  if(c<0||r<0||c>=L.cols||r>=L.rows) return null;
+  if(L2.kind==='h') return {x:c, y:S.y, z:r};
+  const y = H-1-r; return S.axis==='z' ? {x:c,y:y,z:S.pos} : {x:S.pos,y:y,z:c};
+}
+
+/* ---------- readout ---------- */
+const readout = document.getElementById('readout');
+const HINT = 'Passa sopra la vista (o tocca) per leggere blocco e coordinate.';
+function say(c){
+  if(!c){ readout.textContent = HINT; return; }
+  const i = ix(c.x,c.y,c.z), k = grid[i];
+  const head = colName(c.x)+(c.z+1)+' · X '+c.x+' Y '+c.y+' Z '+c.z;
+  if(!k){ readout.innerHTML = '<b>'+head+'</b> · aria'; return; }
+  const p = P[k], f = facingMap.get(i);
+  const b = owner[i]>=0 ? B[owner[i]].name : '-';
+  readout.innerHTML = '<b>'+head+'</b> · '+p.it+' ('+p.en+') · '+b+(f ? ' · lato alto a '+({N:'nord',S:'sud',E:'est',W:'ovest'})[f] : '');
+}
+
+/* ---------- interazione ---------- */
+const ptrs = new Map(); let drag = null, pinch0 = 0, moved = 0;
+function pos(e){ const r = cv.getBoundingClientRect(); return [e.clientX-r.left, e.clientY-r.top]; }
+cv.addEventListener('pointerdown', e=>{
+  cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, pos(e)); moved = 0;
+  if(ptrs.size===1) drag = pos(e);
+  if(ptrs.size===2){ const a = [...ptrs.values()]; pinch0 = Math.hypot(a[0][0]-a[1][0], a[0][1]-a[1][1]); }
+});
+cv.addEventListener('pointermove', e=>{
+  const p = pos(e);
+  if(S.view==='3d' && ptrs.has(e.pointerId)){
+    ptrs.set(e.pointerId, p);
+    if(ptrs.size===2){
+      const a = [...ptrs.values()], d = Math.hypot(a[0][0]-a[1][0], a[0][1]-a[1][1]);
+      if(pinch0>0){ S.zoom = Math.min(4,Math.max(0.5,S.zoom*d/pinch0)); } pinch0 = d; S.hover = null; request(); return;
+    }
+    if(drag){
+      const dx = p[0]-drag[0], dy = p[1]-drag[1]; moved += Math.abs(dx)+Math.abs(dy);
+      S.yaw += dx*0.008; S.pitch = Math.min(1.45, Math.max(0.05, S.pitch+dy*0.006)); drag = p; S.hover = null; request();
+    }
+    return;
+  }
+  if(S.view==='3d'){
+    const o = pick3d(p[0],p[1]); S.hover = o; say(o ? {x:o.f.x,y:o.f.y,z:o.f.z} : null); request();
+  } else say(cell2d(p[0],p[1]));
+});
+function endPtr(e){
+  const wasTap = moved<6 && ptrs.size===1; ptrs.delete(e.pointerId); if(ptrs.size===0) drag = null;
+  if(ptrs.size===1){ drag = [...ptrs.values()][0]; }
+  if(wasTap && e.type==='pointerup'){ const p = pos(e);
+    if(S.view==='3d'){ const o = pick3d(p[0],p[1]); S.hover = o; say(o ? {x:o.f.x,y:o.f.y,z:o.f.z} : null); request(); } else say(cell2d(p[0],p[1])); }
+}
+cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', endPtr);
+cv.addEventListener('pointerleave', ()=>{ if(!ptrs.size){ S.hover = null; say(null); request(); } });
+cv.addEventListener('wheel', e=>{
+  if(S.view!=='3d') return; e.preventDefault();
+  S.zoom = Math.min(4,Math.max(0.5,S.zoom*Math.exp(-e.deltaY*0.0012))); request();
+},{passive:false});
+cv.addEventListener('keydown', e=>{
+  const k = e.key; let used = true;
+  if(S.view==='3d'){
+    if(k==='ArrowLeft') S.yaw -= 0.1; else if(k==='ArrowRight') S.yaw += 0.1;
+    else if(k==='ArrowUp') S.pitch = Math.min(1.45,S.pitch+0.06); else if(k==='ArrowDown') S.pitch = Math.max(0.05,S.pitch-0.06);
+    else if(k==='+'||k==='=') S.zoom = Math.min(4,S.zoom*1.1); else if(k==='-') S.zoom = Math.max(.5,S.zoom/1.1); else used = false;
+    if(used){ S.hover = null; request(); }
+  } else if(S.view==='y'){
+    if(k==='ArrowUp'||k==='PageUp') setY(S.y+1); else if(k==='ArrowDown'||k==='PageDown') setY(S.y-1); else used = false;
+  } else {
+    if(k==='ArrowRight'||k==='ArrowUp') setPos(S.pos+1); else if(k==='ArrowLeft'||k==='ArrowDown') setPos(S.pos-1); else used = false;
+  }
+  if(used) e.preventDefault();
+});
+
+/* ---------- controlli ---------- */
+const controls = document.getElementById('controls');
+function el(tag,attrs,kids){
+  const e = document.createElement(tag);
+  Object.keys(attrs||{}).forEach(k=>{ if(k==='text') e.textContent = attrs[k]; else if(k==='html') e.innerHTML = attrs[k]; else e.setAttribute(k,attrs[k]); });
+  (kids||[]).forEach(c=>e.appendChild(c)); return e;
+}
+function seg(label,opts,cur,onPick){
+  const g = el('div',{'class':'seg',role:'radiogroup','aria-label':label});
+  opts.forEach(o=>{
+    const b = el('button',{type:'button',role:'radio','aria-checked':String(o[0]===cur),text:o[1]});
+    b.addEventListener('click',()=>onPick(o[0])); g.appendChild(b);
+  });
+  return g;
+}
+const layerCount = y=>{ let n=0; for(let z=0;z<DP;z++) for(let x=0;x<W;x++) if(grid[ix(x,y,z)]) n++; return n; };
+function sliderRow(label,min,max,get,set,fmtFn){
+  const inp = el('input',{type:'range',min:min,max:max,step:1,value:get(),'aria-label':label,id:'sl-'+label.replace(/\W/g,'')});
+  const out = el('span',{'class':'val','aria-live':'off'});
+  const dec = el('button',{type:'button','class':'btn step','aria-label':label+' precedente',text:'◀'});
+  const inc = el('button',{type:'button','class':'btn step','aria-label':label+' successivo',text:'▶'});
+  const paint = ()=>{ inp.value = get(); out.textContent = fmtFn(get()); };
+  inp.addEventListener('input',()=>set(Number(inp.value)));
+  dec.addEventListener('click',()=>set(get()-1)); inc.addEventListener('click',()=>set(get()+1));
+  paint();
+  const row = el('div',{'class':'row'},[el('span',{'class':'lbl',text:label}), el('div',{'class':'range'},[dec,inp,inc]), out]);
+  row.paint = paint; return row;
+}
+function chk(id,label,checked,on){
+  const i = el('input',{type:'checkbox',id:id}); i.checked = checked; i.addEventListener('change',()=>on(i.checked));
+  return el('label',{'class':'chk'},[i, document.createTextNode(label)]);
+}
+const axisMax = ()=> S.axis==='z' ? DP-1 : W-1;
+const fmtY = y=>'Y '+y+' · '+layerCount(y)+' blocchi';
+const fmtPos = p=> S.axis==='z' ? 'Z '+p+' · riga '+(p+1) : 'X '+p+' · colonna '+colName(p);
+let sliders = [];
+function buildControls(){
+  controls.innerHTML = ''; sliders = [];
+  if(S.view==='3d'){
+    const r1 = el('div',{'class':'row'},[
+      el('span',{'class':'lbl',text:'Taglio'}),
+      seg('Tipo di taglio',[['none','Nessuno'],['y','Orizzontale'],['v','Verticale']],S.cut,v=>{ S.cut=v; refresh(true); }),
+      el('button',{type:'button','class':'btn',text:'Ripristina vista'})
+    ]);
+    r1.lastChild.addEventListener('click',()=>{ S.yaw=-0.62; S.pitch=0.62; S.zoom=1; request(); });
+    controls.appendChild(r1);
+    if(S.cut==='y'){ const s = sliderRow('Livello Y',0,H-1,()=>S.y,setY,fmtY); sliders.push(s); controls.appendChild(s); }
+    else if(S.cut==='v'){
+      controls.appendChild(el('div',{'class':'row'},[el('span',{'class':'lbl',text:'Asse'}), axisSeg()]));
+      const s = sliderRow('Posizione',0,axisMax(),()=>S.pos,setPos,fmtPos); sliders.push(s); controls.appendChild(s);
+    } else controls.appendChild(el('p',{'class':'note',text:'Il taglio mostra solo la parte sotto il livello scelto, o fino alla sezione verticale.'}));
+  } else if(S.view==='y'){
+    const s = sliderRow('Livello Y',0,H-1,()=>S.y,setY,fmtY); sliders.push(s); controls.appendChild(s);
+    controls.appendChild(el('div',{'class':'row'},[
+      chk('ghost','Mostra il livello sotto in trasparenza',S.ghost,v=>{ S.ghost=v; request(); }),
+      chk('codes','Codici blocco',S.codes,v=>{ S.codes=v; request(); })
+    ]));
+  } else {
+    controls.appendChild(el('div',{'class':'row'},[el('span',{'class':'lbl',text:'Taglio'}), axisSeg()]));
+    const s = sliderRow('Posizione',0,axisMax(),()=>S.pos,setPos,fmtPos); sliders.push(s); controls.appendChild(s);
+    controls.appendChild(el('div',{'class':'row'},[chk('codes','Codici blocco',S.codes,v=>{ S.codes=v; request(); })]));
+  }
+}
+function axisSeg(){
+  return seg('Asse del taglio',[['z','Piano Z (vista da sud)'],['x','Piano X (vista da ovest)']],S.axis,v=>{
+    S.axis = v; S.pos = Math.min(S.pos,axisMax()); if(v==='z' && S.pos<0) S.pos = 0; refresh(true);
+  });
+}
+function setY(v){ S.y = Math.max(0,Math.min(H-1,v)); refresh(false); }
+function setPos(v){ S.pos = Math.max(0,Math.min(axisMax(),v)); refresh(false); }
+
+/* ---------- pannello laterale ---------- */
+const bldEl = document.getElementById('bld'), legEl = document.getElementById('legend');
+function buildSide(){
+  bldEl.innerHTML = ''; legEl.innerHTML = '';
+  const mk = (id,name,sub)=>{
+    const b = el('button',{type:'button','class':'item','aria-pressed':'false'});
+    b.appendChild(el('div',{'class':'nm',html:'<div></div>'}));
+    b.firstChild.firstChild.textContent = name;
+    if(sub){ const s = document.createElement('span'); s.textContent = sub; b.firstChild.appendChild(s); }
+    b.appendChild(el('span',{'class':'n',text:'0'})); return b;
+  };
+  const all = mk(null,'Tutti gli edifici'); all.dataset.b = '-1';
+  all.addEventListener('click',()=>{ S.bld = null; refresh(false); }); bldEl.appendChild(all);
+  B.forEach((b,i)=>{
+    const it = mk(b.id,b.name); it.dataset.b = String(i);
+    it.addEventListener('click',()=>{ S.bld = (S.bld===i) ? null : i; refresh(false); }); bldEl.appendChild(it);
+  });
+  codes.forEach((c,k)=>{
+    const p = P[k+1], it = mk(c,p.it,p.en+' · '+c); it.dataset.c = String(k+1);
+    const sw = el('span',{'class':'sw'}); sw.style.background = p.color; it.insertBefore(sw,it.firstChild);
+    if(SHAPE_LABEL[p.shape]){ const t = el('span',{'class':'tag',text:SHAPE_LABEL[p.shape]}); it.firstChild.nextSibling.firstChild.appendChild(t); }
+    it.addEventListener('click',()=>{ if(S.sel.has(k+1)) S.sel.delete(k+1); else S.sel.add(k+1); refresh(false); });
+    legEl.appendChild(it);
+  });
+}
+function paintSide(){
+  [...bldEl.children].forEach(b=>{
+    const i = Number(b.dataset.b), n = i<0 ? COUNTS.bl.reduce((a,v)=>a+v,0) : COUNTS.bl[i];
+    b.querySelector('.n').textContent = fmt(n);
+    b.setAttribute('aria-pressed', String(i<0 ? S.bld===null : S.bld===i)); b.classList.toggle('zero', i>=0 && n===0);
+  });
+  [...legEl.children].forEach(b=>{
+    const k = Number(b.dataset.c), n = COUNTS.leg[k];
+    b.querySelector('.n').textContent = fmt(n); b.setAttribute('aria-pressed', String(S.sel.has(k))); b.classList.toggle('zero', n===0);
+  });
+}
+const statsEl = document.getElementById('stats');
+function paintStats(){
+  const scope = S.view==='3d' ? (S.cut==='none' ? 'tutta la scena' : 'con taglio') : S.view==='y' ? 'livello Y '+S.y : (S.axis==='z' ? 'piano Z ' : 'piano X ')+S.pos;
+  statsEl.innerHTML = '<span><b>'+W+' × '+H+' × '+DP+'</b> blocchi (X × Y × Z)</span><span><b>'+fmt(TOTAL)+'</b> blocchi totali</span><span>in vista: <b>'+fmt(COUNTS.seen)+'</b> ('+scope+')</span>';
+}
+
+/* ---------- ciclo di aggiornamento ---------- */
+function refresh(rebuildControls){
+  filt(); stats();
+  if(S.view==='3d') buildFaces();
+  if(rebuildControls) buildControls(); else sliders.forEach(s=>s.paint());
+  paintSide(); paintStats(); S.hover = null; request();
+}
+document.getElementById('reset').addEventListener('click',()=>{ S.bld = null; S.sel.clear(); refresh(false); });
+document.getElementById('dim').addEventListener('change',e=>{ S.dim = e.target.checked; refresh(false); });
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  S.view = t.dataset.view;
+  document.querySelectorAll('.tab').forEach(o=>o.setAttribute('aria-selected', String(o===t)));
+  cv.style.touchAction = S.view==='3d' ? 'none' : 'auto';
+  say(null); refresh(true);
+}));
+cv.style.touchAction = 'none';
+buildSide(); say(null); refresh(true); resize();
+
+window.__mc = {S:S, total:TOTAL, counts:()=>({leg:Array.from(COUNTS.leg), bl:Array.from(COUNTS.bl), seen:COUNTS.seen}),
+  faces:()=>faces.length, drawn:()=>drawn.length, grid:grid, refresh:refresh};
+}
+
+const params = new URLSearchParams(location.search);
+const src = params.get('b');
+if(src){
+  fetch(src).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }).then(boot).catch(e=>{
+    document.getElementById('title').textContent = 'Errore nel caricamento';
+    document.getElementById('subtitle').textContent = 'Impossibile caricare "'+src+'": '+e.message;
+  });
+} else {
+  document.getElementById('title').textContent = 'Nessuna build specificata';
+  document.getElementById('subtitle').textContent = 'Apri questa pagina con ?b=percorso/al/build.json (vedi index.html per l\'elenco).';
+}
+})();
+</script>

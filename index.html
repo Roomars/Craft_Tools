@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Craft Tools — build Minecraft</title>
+<style>
+  :root{ color-scheme: light dark; }
+  body{ font-family: -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 46rem; margin: 3rem auto; padding: 0 1.25rem;
+        background:#fafaf7; color:#1c231f; }
+  @media (prefers-color-scheme: dark){ body{ background:#14181a; color:#e7ece8; } a{ color:#8fd0a6; } }
+  h1{ font-size: 1.6rem; margin-bottom:.25rem; }
+  p.lead{ opacity:.75; margin-top:0; }
+  ul{ list-style:none; padding:0; }
+  li{ border:1px solid rgba(127,127,127,.3); border-radius:.6rem; padding:1rem 1.2rem; margin-bottom:.8rem; }
+  li a{ font-weight:600; font-size:1.05rem; text-decoration:none; }
+  li a:hover{ text-decoration:underline; }
+  .meta{ font-size:.85rem; opacity:.7; margin-top:.3rem; }
+  footer{ margin-top:2.5rem; font-size:.85rem; opacity:.6; }
+</style>
+</head>
+<body>
+  <h1>Craft Tools</h1>
+  <p class="lead">Build Minecraft progettate a blocchi, verificate contro un database ufficiale, visualizzabili in 3D e in sezione.</p>
+
+  <ul id="list">
+    <li>
+      <a href="viewer.html?b=builds/casetta-nel-bosco/build.json">Casetta nel bosco</a>
+      <div class="meta">1017 blocchi · casetta con soppalco, portico, camino, pozzo, legnaia e orto</div>
+    </li>
+  </ul>
+
+  <footer>Database blocchi: <a href="database/minecraft_blocks_java_26.1.json">minecraft_blocks_java_26.1.json</a> (Java 26.1, 1168 blocchi)</footer>
+</body>
+</html>
